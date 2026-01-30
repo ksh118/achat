@@ -3,115 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 학습 도우미</title>
+    <title>AI 문제 풀이</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
         body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 15px; background: #f4f7f6; }
-        .chat-box { height: 450px; overflow-y: auto; background: white; border-radius: 12px; padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; }
-        .msg { margin-bottom: 10px; padding: 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; word-break: break-all; }
+        #chat { height: 400px; overflow-y: auto; background: white; border-radius: 12px; padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; }
+        .msg { margin-bottom: 10px; padding: 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; }
         .user { background: #007aff; color: white; margin-left: 15%; }
         .ai { background: #e9e9eb; color: black; margin-right: 15%; }
-        .img-view { width: 100%; border-radius: 8px; margin-bottom: 5px; }
+        img { width: 100%; border-radius: 8px; margin-bottom: 5px; }
         .controls { display: flex; flex-direction: column; gap: 8px; }
-        .input-row { display: flex; gap: 5px; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
-        button { padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-camera { background: #34c759; color: white; font-size: 16px; }
-        .btn-send { background: #007aff; color: white; width: 70px; }
+        button { padding: 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; background: #34c759; color: white; font-size: 16px; }
     </style>
 </head>
 <body>
-    <h3 style="text-align:center;">📘 AI 문제 해결사</h3>
-    <div class="chat-box" id="chatContainer"></div>
+    <div id="chat"></div>
     <div class="controls">
-        <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
-        <button class="btn-camera" onclick="document.getElementById('camInput').click()">📸 사진으로 문제 풀기</button>
-        <div class="input-row">
-            <input type="text" id="userText" placeholder="질문을 입력하세요...">
-            <button class="btn-send" id="sendBtn">전송</button>
-        </div>
+        <input type="file" id="cam" accept="image/*" capture="environment" style="display:none;">
+        <button onclick="document.getElementById('cam').click()">📷 사진 찍기 (바로 시작)</button>
     </div>
 
     <script>
-        const SB_URL = "https://nguwjyykgifeswobongq.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndXdqeXlrZ2lmZXN3b2JvbmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTY4OTMsImV4cCI6MjA4NTMzMjg5M30.3wy2nyumj3apjWpiK-u5aJEuug81Ofkk_o8oW_xw4Vg";
-        const sbClient = window.supabase.createClient(SB_URL, SB_KEY);
-        const chatContainer = document.getElementById('chatContainer');
+        const SURL = "https://nguwjyykgifeswobongq.supabase.co";
+        const SKEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndXdqeXlrZ2lmZXN3b2JvbmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTY4OTMsImV4cCI6MjA4NTMzMjg5M30.3wy2nyumj3apjWpiK-u5aJEuug81Ofkk_o8oW_xw4Vg";
+        const client = window.supabase.createClient(SURL, SKEY);
 
-        function printMsg(role, text, img = null) {
+        function add(role, text, img = null) {
             const div = document.createElement('div');
             div.className = `msg ${role}`;
-            if(img) div.innerHTML += `<img src="${img}" class="img-view">`;
+            if(img) div.innerHTML += `<img src="${img}">`;
             div.innerHTML += `<div>${text}</div>`;
-            chatContainer.appendChild(div);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            document.getElementById('chat').appendChild(div);
+            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
         }
 
-        // 히스토리 불러오기
-        (async () => {
-            const { data } = await sbClient.from('chat_history').select('*').order('created_at', { ascending: true });
-            if(data) data.forEach(i => {
-                printMsg('user', i.question, i.image_url);
-                printMsg('ai', i.answer);
-            });
-        })();
-
-        // 사진 분석 핵심 로직
-        document.getElementById('camInput').onchange = async (e) => {
+        document.getElementById('cam').onchange = async (e) => {
             const file = e.target.files[0];
             if(!file) return;
 
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
-                const base64Img = reader.result;
-                printMsg('user', "이 문제를 분석해줘.", base64Img);
+                const b64 = reader.result;
+                add('user', "분석 시작...", b64);
 
                 try {
-                    const response = await fetch('/api/solve', {
+                    const res = await fetch('/api/solve', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image: base64Img.split(',')[1] })
+                        body: JSON.stringify({ image: b64.split(',')[1] })
                     });
 
-                    const result = await response.json();
-                    console.log("서버 응답 데이터:", result);
-
-                    // 에러 체크 및 데이터 추출 (TypeError 방지)
-                    if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-                        const aiText = result.candidates[0].content.parts[0].text;
-                        printMsg('ai', aiText);
-                        await sbClient.from('chat_history').insert([{ question: "사진 분석", answer: aiText, image_url: base64Img }]);
+                    const data = await res.json();
+                    
+                    // 핵심 수정: AI 답변 추출 방식을 훨씬 유연하게 바꿈
+                    let aiText = "";
+                    if (data.candidates && data.candidates[0].content) {
+                        aiText = data.candidates[0].content.parts[0].text;
+                    } else if (data.error) {
+                        aiText = "에러발생: " + data.error.message;
                     } else {
-                        throw new Error(result.error || "AI 응답 형식이 올바르지 않습니다.");
+                        aiText = "응답 형식 오류: " + JSON.stringify(data);
                     }
+
+                    add('ai', aiText);
+                    await client.from('chat_history').insert([{ question: "사진 분석", answer: aiText, image_url: b64 }]);
                 } catch (err) {
-                    console.error("분석 에러:", err);
-                    printMsg('ai', "❌ 에러 발생: " + err.message);
+                    add('ai', "네트워크 오류: " + err.message);
                 }
             };
-        };
-
-        // 텍스트 전송
-        document.getElementById('sendBtn').onclick = async () => {
-            const val = document.getElementById('userText').value;
-            if(!val) return;
-            printMsg('user', val);
-            document.getElementById('userText').value = '';
-
-            try {
-                const response = await fetch('/api/solve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: val })
-                });
-                const result = await response.json();
-                const aiText = result.candidates[0].content.parts[0].text;
-                printMsg('ai', aiText);
-                await sbClient.from('chat_history').insert([{ question: val, answer: aiText }]);
-            } catch (err) {
-                printMsg('ai', "❌ 답변을 가져오지 못했습니다.");
-            }
         };
     </script>
 </body>
