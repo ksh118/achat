@@ -6,88 +6,100 @@
     <title>AI 문제 풀이</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
-        .chat-box { height: 400px; overflow-y: auto; background: white; border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
-        .msg { margin-bottom: 10px; padding: 10px; border-radius: 8px; font-size: 14px; }
-        .user { background: #007bff; color: white; text-align: right; margin-left: 20%; }
-        .ai { background: #eee; color: #333; margin-right: 20%; }
-        .controls { display: flex; flex-direction: column; gap: 10px; }
-        button { padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        input[type="text"] { padding: 12px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
+        body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 15px; background: #f8f9fa; }
+        .chat-box { height: 400px; overflow-y: auto; background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; }
+        .msg { margin-bottom: 12px; padding: 10px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+        .user { background: #007aff; color: white; margin-left: 15%; text-align: right; }
+        .ai { background: #e9e9eb; color: black; margin-right: 15%; }
+        .controls { display: flex; flex-direction: column; gap: 8px; }
+        .input-row { display: flex; gap: 5px; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; }
+        button { padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; color: white; }
     </style>
 </head>
 <body>
-    <div class="chat-box" id="chatBox"></div>
+    <h3 style="text-align: center;">📸 AI 학습 도우미</h3>
+    <div class="chat-box" id="chatWindow"></div>
     <div class="controls">
-        <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
-        <button onclick="document.getElementById('camInput').click()" style="background:#28a745; color:white;">📸 사진 찍기 / 업로드</button>
-        <div style="display:flex; gap:5px;">
-            <input type="text" id="userInput" placeholder="질문을 입력하세요...">
-            <button id="sendBtn" style="background:#007bff; color:white;">전송</button>
+        <input type="file" id="camera" accept="image/*" capture="environment" style="display:none;">
+        <button onclick="document.getElementById('camera').click()" style="background:#28a745;">📷 사진 찍기 / 문제 선택</button>
+        <div class="input-row">
+            <input type="text" id="userInput" placeholder="추가 질문을 입력하세요...">
+            <button id="sendBtn" style="background:#007aff;">전송</button>
         </div>
     </div>
 
     <script>
-        // 변수명 중복을 피하기 위해 'final' 접두사 사용
-        const finalSUrl = "https://nguwjyykgifeswobongq.supabase.co";
-        const finalSKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndXdqeXlrZ2lmZXN3b2JvbmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTY4OTMsImV4cCI6MjA4NTMzMjg5M30.3wy2nyumj3apjWpiK-u5aJEuug81Ofkk_o8oW_xw4Vg";
-        const finalClient = window.supabase.createClient(finalSUrl, finalSKey);
-        const chatBox = document.getElementById('chatBox');
+        const S_URL = "https://nguwjyykgifeswobongq.supabase.co";
+        const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndXdqeXlrZ2lmZXN3b2JvbmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTY4OTMsImV4cCI6MjA4NTMzMjg5M30.3wy2nyumj3apjWpiK-u5aJEuug81Ofkk_o8oW_xw4Vg";
+        // 변수명 중복 에러 방지를 위해 고유한 이름 사용
+        const globalSupabase = window.supabase.createClient(S_URL, S_KEY);
+        const chatWindow = document.getElementById('chatWindow');
 
-        function addMsg(role, text, img = null) {
+        function showMsg(role, text, img = null) {
             const div = document.createElement('div');
             div.className = `msg ${role}`;
             if(img) div.innerHTML += `<img src="${img}" style="width:100%; border-radius:5px; margin-bottom:5px;">`;
             div.innerHTML += `<div>${text}</div>`;
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        // 히스토리 로드
+        // 과거 기록 불러오기
         (async () => {
-            const { data } = await finalClient.from('chat_history').select('*').order('created_at', { ascending: true });
+            const { data } = await globalSupabase.from('chat_history').select('*').order('created_at', { ascending: true });
             if(data) data.forEach(d => {
-                addMsg('user', d.question, d.image_url);
-                addMsg('ai', d.answer);
+                showMsg('user', d.question, d.image_url);
+                showMsg('ai', d.answer);
             });
         })();
 
-        // 사진 분석 (Vercel API 호출)
-        document.getElementById('camInput').onchange = async (e) => {
+        // 사진 찍고 분석하기
+        document.getElementById('camera').onchange = async (e) => {
             const file = e.target.files[0];
             if(!file) return;
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
                 const base64 = reader.result;
-                addMsg('user', "사진 분석 중...", base64);
-                const res = await fetch('/api/solve', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ image: base64.split(',')[1] })
-                });
-                const data = await res.json();
-                const aiMsg = data.candidates[0].content.parts[0].text;
-                addMsg('ai', aiMsg);
-                await finalClient.from('chat_history').insert([{ question: "사진 분석", answer: aiMsg, image_url: base64 }]);
+                showMsg('user', "문제를 분석하고 있습니다...", base64);
+
+                try {
+                    const res = await fetch('/api/solve', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ image: base64.split(',')[1] })
+                    });
+                    const data = await res.json();
+                    
+                    // 에러 핸들링 추가
+                    if (!data.candidates || data.candidates.length === 0) throw new Error("AI 답변 없음");
+                    
+                    const aiAnswer = data.candidates[0].content.parts[0].text;
+                    showMsg('ai', aiAnswer);
+                    await globalSupabase.from('chat_history').insert([{ question: "사진 분석", answer: aiAnswer, image_url: base64 }]);
+                } catch (err) {
+                    showMsg('ai', "분석에 실패했습니다. 서버 로그를 확인하세요.");
+                }
             };
         };
 
-        // 채팅 전송
+        // 텍스트 질문 전송
         document.getElementById('sendBtn').onclick = async () => {
-            const val = document.getElementById('userInput').value;
-            if(!val) return;
-            addMsg('user', val);
+            const text = document.getElementById('userInput').value;
+            if(!text) return;
+            showMsg('user', text);
             document.getElementById('userInput').value = '';
+
             const res = await fetch('/api/solve', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ text: val })
+                body: JSON.stringify({ text: text })
             });
             const data = await res.json();
-            const aiMsg = data.candidates[0].content.parts[0].text;
-            addMsg('ai', aiMsg);
-            await finalClient.from('chat_history').insert([{ question: val, answer: aiMsg }]);
+            const aiAnswer = data.candidates[0].content.parts[0].text;
+            showMsg('ai', aiAnswer);
+            await globalSupabase.from('chat_history').insert([{ question: text, answer: aiAnswer }]);
         };
     </script>
 </body>
