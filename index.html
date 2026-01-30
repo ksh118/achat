@@ -3,127 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 학습 도우미</title>
+    <title>AI 문제 풀이</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 15px; background: #f5f5f5; }
-        .chat-window { height: 450px; overflow-y: auto; background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .msg { margin-bottom: 12px; padding: 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; word-break: break-all; }
-        .user { background: #007aff; color: white; margin-left: 15%; }
-        .ai { background: #e9e9eb; color: black; margin-right: 15%; border-left: 4px solid #007aff; }
-        .img-preview { max-width: 150px; display: block; margin-bottom: 8px; border-radius: 6px; }
-        .controls { display: flex; flex-direction: column; gap: 8px; }
-        .input-row { display: flex; gap: 8px; }
-        input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; outline: none; }
-        button { padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .btn-photo { background: #34c759; color: white; font-size: 16px; }
-        .btn-send { background: #007aff; color: white; width: 80px; }
-        button:active { opacity: 0.7; }
+        body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
+        .chat-box { height: 400px; overflow-y: auto; background: white; border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        .msg { margin-bottom: 10px; padding: 10px; border-radius: 8px; font-size: 14px; }
+        .user { background: #007bff; color: white; text-align: right; margin-left: 20%; }
+        .ai { background: #eee; color: #333; margin-right: 20%; }
+        .controls { display: flex; flex-direction: column; gap: 10px; }
+        button { padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        input[type="text"] { padding: 12px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
     </style>
 </head>
 <body>
-    <h3 style="text-align: center; color: #333;">📘 AI 문제 풀이 챗</h3>
-    
-    <div class="chat-window" id="chatBox"></div>
-
+    <div class="chat-box" id="chatBox"></div>
     <div class="controls">
         <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
-        <button class="btn-photo" onclick="document.getElementById('camInput').click()">📸 사진 찍기 / 문제 선택</button>
-        
-        <div class="input-row">
-            <input type="text" id="userInput" placeholder="추가 질문을 입력하세요...">
-            <button class="btn-send" id="sendBtn">전송</button>
+        <button onclick="document.getElementById('camInput').click()" style="background:#28a745; color:white;">📸 사진 찍기 / 업로드</button>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="userInput" placeholder="질문을 입력하세요...">
+            <button id="sendBtn" style="background:#007bff; color:white;">전송</button>
         </div>
     </div>
 
     <script>
-        // 변수 중복 방지를 위해 이름을 명확히 구분함
-        const PROJECT_URL = "https://nguwjyykgifeswobongq.supabase.co";
-        const PROJECT_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndXdqeXlrZ2lmZXN3b2JvbmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTY4OTMsImV4cCI6MjA4NTMzMjg5M30.3wy2nyumj3apjWpiK-u5aJEuug81Ofkk_o8oW_xw4Vg";
-        
-        // supabase 전역 변수 중복 선언 해결
-        const mySupabase = window.supabase.createClient(PROJECT_URL, PROJECT_KEY);
+        // 변수명 중복을 피하기 위해 'final' 접두사 사용
+        const finalSUrl = "https://nguwjyykgifeswobongq.supabase.co";
+        const finalSKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndXdqeXlrZ2lmZXN3b2JvbmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTY4OTMsImV4cCI6MjA4NTMzMjg5M30.3wy2nyumj3apjWpiK-u5aJEuug81Ofkk_o8oW_xw4Vg";
+        const finalClient = window.supabase.createClient(finalSUrl, finalSKey);
         const chatBox = document.getElementById('chatBox');
 
-        function renderMsg(role, text, img = null) {
+        function addMsg(role, text, img = null) {
             const div = document.createElement('div');
             div.className = `msg ${role}`;
-            if(img) div.innerHTML += `<img src="${img}" class="img-preview">`;
+            if(img) div.innerHTML += `<img src="${img}" style="width:100%; border-radius:5px; margin-bottom:5px;">`;
             div.innerHTML += `<div>${text}</div>`;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // 1. 과거 히스토리 불러오기
-        async function loadHistory() {
-            try {
-                const { data, error } = await mySupabase.from('chat_history').select('*').order('created_at', { ascending: true });
-                if (data) {
-                    data.forEach(item => {
-                        renderMsg('user', item.question, item.image_url);
-                        renderMsg('ai', item.answer);
-                    });
-                }
-            } catch (e) { console.error("히스토리 로딩 실패:", e); }
-        }
-        loadHistory();
+        // 히스토리 로드
+        (async () => {
+            const { data } = await finalClient.from('chat_history').select('*').order('created_at', { ascending: true });
+            if(data) data.forEach(d => {
+                addMsg('user', d.question, d.image_url);
+                addMsg('ai', d.answer);
+            });
+        })();
 
-        // 2. 사진 분석 핸들러
+        // 사진 분석 (Vercel API 호출)
         document.getElementById('camInput').onchange = async (e) => {
             const file = e.target.files[0];
             if(!file) return;
-
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
-                const base64Full = reader.result;
-                renderMsg('user', "사진을 분석하고 있습니다...", base64Full);
-
-                try {
-                    const res = await fetch('/api/solve', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ image: base64Full.split(',')[1] })
-                    });
-                    const data = await res.json();
-                    const aiResult = data.candidates[0].content.parts[0].text;
-
-                    renderMsg('ai', aiResult);
-
-                    // Supabase 저장
-                    await mySupabase.from('chat_history').insert([{ 
-                        question: "사진 분석 요청", 
-                        answer: aiResult, 
-                        image_url: base64Full 
-                    }]);
-                } catch (err) {
-                    renderMsg('ai', "분석에 실패했습니다. Vercel 로그를 확인하세요.");
-                }
-            };
-        };
-
-        // 3. 텍스트 채팅 핸들러
-        document.getElementById('sendBtn').onclick = async () => {
-            const textVal = document.getElementById('userInput').value;
-            if(!textVal) return;
-
-            renderMsg('user', textVal);
-            document.getElementById('userInput').value = '';
-
-            try {
+                const base64 = reader.result;
+                addMsg('user', "사진 분석 중...", base64);
                 const res = await fetch('/api/solve', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ text: textVal })
+                    body: JSON.stringify({ image: base64.split(',')[1] })
                 });
                 const data = await res.json();
-                const aiResult = data.candidates[0].content.parts[0].text;
+                const aiMsg = data.candidates[0].content.parts[0].text;
+                addMsg('ai', aiMsg);
+                await finalClient.from('chat_history').insert([{ question: "사진 분석", answer: aiMsg, image_url: base64 }]);
+            };
+        };
 
-                renderMsg('ai', aiResult);
-                await mySupabase.from('chat_history').insert([{ question: textVal, answer: aiResult }]);
-            } catch (err) {
-                renderMsg('ai', "답변을 가져오지 못했습니다.");
-            }
+        // 채팅 전송
+        document.getElementById('sendBtn').onclick = async () => {
+            const val = document.getElementById('userInput').value;
+            if(!val) return;
+            addMsg('user', val);
+            document.getElementById('userInput').value = '';
+            const res = await fetch('/api/solve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text: val })
+            });
+            const data = await res.json();
+            const aiMsg = data.candidates[0].content.parts[0].text;
+            addMsg('ai', aiMsg);
+            await finalClient.from('chat_history').insert([{ question: val, answer: aiMsg }]);
         };
     </script>
 </body>
