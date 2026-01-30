@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 문제 풀이</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        video { width: 100%; max-width: 400px; border-radius: 10px; border: 2px solid #333; }
+        #result { margin-top: 20px; text-align: left; background: #eee; padding: 15px; border-radius: 10px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h2>📸 문제 풀이 AI</h2>
+    <video id="video" autoplay playsinline></video><br>
+    <button id="btn" style="padding:15px 30px; margin-top:10px;">문제 찍기</button>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="result">결과가 여기에 표시됩니다.</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const result = document.getElementById('result');
+
+        // 카메라 켜기
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(s => video.srcObject = s);
+
+        document.getElementById('btn').onclick = async () => {
+            result.innerText = "분석 중...";
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
+
+            // 우리가 만든 API(/api/solve)로 전송! (키가 필요 없음)
+            const res = await fetch('/api/solve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64Image })
+            });
+
+            const data = await res.json();
+            result.innerText = data.candidates[0].content.parts[0].text;
+        };
+    </script>
+</body>
+</html>
