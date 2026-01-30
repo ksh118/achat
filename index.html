@@ -3,129 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 문제 풀이 & 채팅</title>
+    <title>AI 콴다 스타일 서비스</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
-        video, img { width: 100%; border-radius: 10px; border: 2px solid #333; margin-bottom: 10px; }
-        .chat-container { border: 1px solid #ddd; background: white; padding: 15px; border-radius: 10px; margin-top: 20px; max-height: 400px; overflow-y: auto; }
-        .msg { margin-bottom: 15px; padding: 10px; border-radius: 8px; }
-        .user-msg { background: #e3f2fd; text-align: right; }
-        .ai-msg { background: #f1f8e9; text-align: left; border-left: 4px solid #4caf50; }
-        .input-group { display: flex; gap: 5px; margin-top: 10px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
-        button { padding: 10px 20px; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .hidden { display: none; }
+        body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 15px; background: #f5f5f5; }
+        .chat-window { height: 400px; overflow-y: auto; background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; }
+        .msg { margin-bottom: 10px; padding: 10px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+        .user { background: #007aff; color: white; margin-left: 20%; text-align: right; }
+        .ai { background: #e9e9eb; color: black; margin-right: 20%; }
+        .img-preview { max-width: 100px; display: block; margin-bottom: 5px; border-radius: 5px; }
+        .controls { display: flex; gap: 5px; flex-direction: column; }
+        .input-row { display: flex; gap: 5px; }
+        input[type="text"] { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
+        button { padding: 10px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-photo { background: #34c759; color: white; }
+        .btn-send { background: #007aff; color: white; }
     </style>
 </head>
 <body>
-    <h2>📸 AI 문제 풀이 & 채팅</h2>
+    <h3>📘 AI 학습 도우미</h3>
     
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas" class="hidden"></canvas>
-    <button id="captureBtn" style="width:100%; height:50px;">📷 사진 찍고 분석하기</button>
-
-    <div class="chat-container" id="chatWindow">
+    <div class="chat-window" id="chatBox">
         </div>
 
-    <div class="input-group">
-        <input type="text" id="followUpInput" placeholder="추가 질문을 입력하세요...">
-        <button id="sendBtn">전송</button>
+    <div class="controls">
+        <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none;">
+        <button class="btn-photo" onclick="document.getElementById('camInput').click()">📸 사진 찍기 또는 문제 올리기</button>
+        
+        <div class="input-row">
+            <input type="text" id="userInput" placeholder="질문을 입력하세요...">
+            <button class="btn-send" id="sendBtn">전송</button>
+        </div>
     </div>
 
     <script>
-        // 1. Supabase 설정
-        const SUPABASE_URL = "https://nguwjyykgifeswobongq.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // 여기에 전체 키를 넣으세요
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const S_URL = "https://nguwjyykgifeswobongq.supabase.co";
+        const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // 님꺼 전체 키
+        const supabase = window.supabase.createClient(S_URL, S_KEY);
 
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const chatWindow = document.getElementById('chatWindow');
-        const followUpInput = document.getElementById('followUpInput');
+        const chatBox = document.getElementById('chatBox');
 
-        // 카메라 시작
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(s => video.srcObject = s)
-            .catch(e => alert("카메라를 켤 수 없습니다: " + e));
-
-        // 기록 불러오기
-        async function loadHistory() {
-            const { data, error } = await supabase.from('chat_history').select('*').order('created_at', { ascending: true });
-            if (data) {
-                data.forEach(item => {
-                    addMessage('user', item.question, item.image_url);
-                    addMessage('ai', item.answer);
-                });
-            }
-        }
-        loadHistory();
-
-        // 메시지 화면 표시
-        function addMessage(role, text, imgUrl = null) {
+        // 메시지 화면에 그리기
+        function renderMsg(role, text, img = null) {
             const div = document.createElement('div');
-            div.className = `msg ${role === 'user' ? 'user-msg' : 'ai-msg'}`;
-            if (imgUrl) {
-                const img = document.createElement('img');
-                img.src = imgUrl;
-                img.style.width = "100px";
-                div.appendChild(img);
-            }
-            const p = document.createElement('p');
-            p.innerText = (role === 'user' ? "나: " : "AI: ") + text;
-            div.appendChild(p);
-            chatWindow.appendChild(div);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+            div.className = `msg ${role}`;
+            if(img) div.innerHTML += `<img src="${img}" class="img-preview">`;
+            div.innerHTML += `<div>${text}</div>`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // 사진 찍고 분석
-        document.getElementById('captureBtn').onclick = async () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
-            
-            addMessage('user', "사진 분석 중...", canvas.toDataURL('image/jpeg'));
+        // 1. 과거 히스토리 가져오기
+        async function getHistory() {
+            const { data } = await supabase.from('chat_history').select('*').order('created_at', { ascending: true });
+            if(data) data.forEach(item => renderMsg(item.image_url ? 'user' : 'user', item.question, item.image_url) || renderMsg('ai', item.answer));
+        }
+        getHistory();
 
-            // Vercel 서버리스 함수로 요청
-            const res = await fetch('/api/solve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: base64Image })
-            });
-            const data = await res.json();
-            const aiAnswer = data.candidates[0].content.parts[0].text;
+        // 2. 사진 처리 로직
+        document.getElementById('camInput').onchange = async (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
 
-            addMessage('ai', aiAnswer);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64 = reader.result;
+                renderMsg('user', "사진 분석 중...", base64);
 
-            // Supabase에 저장
-            await supabase.from('chat_history').insert([
-                { question: "사진 분석 요청", answer: aiAnswer, image_url: canvas.toDataURL('image/jpeg') }
-            ]);
+                // AI에게 보내기 (Vercel API)
+                const res = await fetch('/api/solve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: base64.split(',')[1] })
+                });
+                const data = await res.json();
+                const aiText = data.candidates[0].content.parts[0].text;
+
+                renderMsg('ai', aiText);
+
+                // Supabase에 저장
+                await supabase.from('chat_history').insert([{ 
+                    question: "사진 분석 요청", 
+                    answer: aiText, 
+                    image_url: base64 
+                }]);
+            };
         };
 
-        // 추가 질문하기 (채팅)
+        // 3. 채팅 전송 로직
         document.getElementById('sendBtn').onclick = async () => {
-            const question = followUpInput.value;
-            if(!question) return;
+            const val = document.getElementById('userInput').value;
+            if(!val) return;
 
-            addMessage('user', question);
-            followUpInput.value = "";
+            renderMsg('user', val);
+            document.getElementById('userInput').value = '';
 
-            // Vercel 서버리스 함수로 텍스트 대화 요청
-            // (기존 solve.js를 텍스트도 받게 수정하거나 별도의 api/chat.js 필요)
             const res = await fetch('/api/solve', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: question }) // 텍스트만 전송
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text: val })
             });
             const data = await res.json();
-            const aiAnswer = data.candidates[0].content.parts[0].text;
+            const aiText = data.candidates[0].content.parts[0].text;
 
-            addMessage('ai', aiAnswer);
-
-            // 기록 저장
-            await supabase.from('chat_history').insert([{ question, answer: aiAnswer }]);
+            renderMsg('ai', aiText);
+            await supabase.from('chat_history').insert([{ question: val, answer: aiText }]);
         };
     </script>
 </body>
