@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대화 기록</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .clear-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .session-list {
+            padding: 16px;
+        }
+
+        .session-item {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.2s;
+        }
+
+        .session-item:active {
+            transform: scale(0.98);
+        }
+
+        .session-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .session-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .session-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .session-preview {
+            font-size: 14px;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .session-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .session-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #999;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .delete-btn {
+            background: #ff3b30;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left" onclick="goBack()">
+            <span style="font-size: 20px;">←</span>
+            <span class="header-title">대화 기록</span>
+        </div>
+        <button class="clear-btn" onclick="clearAll()">전체 삭제</button>
+    </div>
+
+    <div class="session-list" id="sessionList"></div>
+
+    <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">💬</div>
+        <p>아직 대화 기록이 없습니다</p>
+    </div>
+
+    <script>
+        function loadSessions() {
+            const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
+            const list = document.getElementById('sessionList');
+            const emptyState = document.getElementById('emptyState');
+
+            if (sessions.length === 0) {
+                list.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            list.innerHTML = '';
+            
+            sessions.forEach((session, index) => {
+                const item = document.createElement('div');
+                item.className = 'session-item';
+
+                // 썸네일 이미지
+                const imageMsg = session.messages.find(m => m.image);
+                const imageUrl = imageMsg ? imageMsg.image : '';
+
+                // 첫 AI 응답 찾기
+                const firstAI = session.messages.find(m => m.type === 'ai');
+                const preview = firstAI ? firstAI.content.substring(0, 100) : '대화 내용 없음';
+
+                // 메시지 개수
+                const messageCount = session.messages.filter(m => m.type === 'user' && !m.image).length;
+
+                item.innerHTML = `
+                    <div class="session-header">
+                        ${imageUrl ? `<img src="${imageUrl}" class="session-image">` : ''}
+                        <div class="session-info">
+                            <div class="session-preview">${preview}...</div>
+                            <div class="session-time">${formatDate(session.createdAt)}</div>
+                            ${messageCount > 0 ? `<span class="session-badge">질문 ${messageCount}개</span>` : ''}
+                        </div>
+                    </div>
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteSession(${index})">
+                        이 대화 삭제
+                    </button>
+                `;
+
+                item.onclick = (e) => {
+                    if (e.target.classList.contains('delete-btn')) return;
+                    loadSession(index);
+                };
+
+                list.appendChild(item);
+            });
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return '방금 전';
+            if (diff < 3600000) return Math.floor(diff / 60000) + '분 전';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '시간 전';
+            
+            return date.toLocaleDateString('ko-KR', { 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function loadSession(index) {
+            const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
+            
+            // 해당 세션을 맨 앞으로
+            const session = sessions[index];
+            sessions.splice(index, 1);
+            sessions.unshift(session);
+            
+            localStorage.setItem('chat_sessions', JSON.stringify(sessions));
+            window.location.href = 'index.html';
+        }
+
+        function deleteSession(index) {
+            if (!confirm('이 대화를 삭제하시겠습니까?')) return;
+            
+            const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
+            sessions.splice(index, 1);
+            localStorage.setItem('chat_sessions', JSON.stringify(sessions));
+            loadSessions();
+        }
+
+        function clearAll() {
+            if (!confirm('모든 대화 기록을 삭제하시겠습니까?')) return;
+            
+            localStorage.removeItem('chat_sessions');
+            loadSessions();
+        }
+
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+
+        loadSessions();
+    </script>
+</body>
+</html>
