@@ -3,59 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>codetbase - 기록</title>
+    <title>기록</title>
     <style>
-        body { margin: 0; background: #fff; font-family: sans-serif; }
-        .header { background: #ff2d55; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; }
-        .grid img { width: 100%; height: 130px; object-fit: cover; cursor: pointer; }
-        
-        /* 상세 풀이 모달 */
-        #detail-view { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; overflow-y: auto; }
-        .detail-header { background: #ff2d55; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .detail-content { padding: 15px; text-align: center; }
-        .detail-content img { width: 100%; border-radius: 8px; margin-bottom: 20px; }
-        .answer-text { text-align: left; background: #f4f4f4; padding: 15px; border-radius: 10px; line-height: 1.6; white-space: pre-wrap; }
+        body { margin: 0; font-family: sans-serif; }
+        .header { background: #ff2d55; color: white; padding: 15px; text-align: center; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+        .grid img { width: 100%; height: 120px; object-fit: cover; }
+        #pop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; overflow-y: auto; }
+        .pop-head { background: #ff2d55; color: white; padding: 15px; display: flex; justify-content: space-between; }
+        .pop-body { padding: 15px; text-align: center; }
+        .pop-body img { width: 100%; border-radius: 10px; }
+        .ans-box { text-align: left; background: #f0f0f0; padding: 15px; border-radius: 10px; margin-top: 15px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <span onclick="location.href='index.html'" style="cursor:pointer">＜</span>
-        <span>기록</span>
-        <span>✅</span>
-    </div>
-    <div class="grid" id="historyGrid"></div>
+    <div class="header" onclick="location.href='index.html'">기록 (뒤로가기)</div>
+    <div class="grid" id="g"></div>
 
-    <div id="detail-view">
-        <div class="detail-header">
-            <span onclick="closeDetail()" style="cursor:pointer">＜</span>
-            <span>문제 풀이</span>
-            <span onclick="closeDetail()" style="cursor:pointer">✕</span>
-        </div>
-        <div class="detail-content">
-            <img id="detail-img">
-            <div class="answer-text" id="detail-text"></div>
+    <div id="pop">
+        <div class="pop-head"><span onclick="closeP()">＜</span> 문제 풀이 <span>✕</span></div>
+        <div class="pop-body">
+            <img id="p-img">
+            <div class="ans-box" id="p-ans"></div>
         </div>
     </div>
 
     <script>
-        const grid = document.getElementById('historyGrid');
-        const history = JSON.parse(localStorage.getItem('codetbase_history') || '[]');
+        const h = JSON.parse(localStorage.getItem('cb_history') || '[]');
+        const g = document.getElementById('g');
 
-        history.forEach((data, index) => {
+        h.forEach((item, i) => {
             const img = document.createElement('img');
-            img.src = data.img;
+            img.src = item.img;
             img.onclick = () => {
-                document.getElementById('detail-img').src = data.img;
-                document.getElementById('detail-text').innerText = data.answer;
-                document.getElementById('detail-view').style.display = 'block';
+                document.getElementById('p-img').src = item.img;
+                // [핵심] 저장된 문자열 풀이를 그대로 출력
+                document.getElementById('p-ans').innerText = item.ans;
+                document.getElementById('pop').style.display = 'block';
             };
-            grid.appendChild(img);
+            g.appendChild(img);
         });
 
-        function closeDetail() {
-            document.getElementById('detail-view').style.display = 'none';
-        }
+        function closeP() { document.getElementById('pop').style.display = 'none'; }
     </script>
 </body>
 </html>
