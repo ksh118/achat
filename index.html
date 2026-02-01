@@ -9,20 +9,28 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Noto Sans KR', sans-serif; background: #000; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         .header { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px); color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: absolute; top: 0; left: 0; right: 0; z-index: 100; }
-        .camera-container { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+        .camera-container { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
         video { width: 100%; height: 100%; object-fit: cover; }
         .camera-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-        .crosshair { font-size: 60px; color: rgba(255,255,255,0.5); }
-        .capture-btn { width: 80px; height: 80px; background: white; border: 6px solid #667eea; border-radius: 50%; cursor: pointer; position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); }
-        .loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; flex-direction: column; color: white; }
-        .spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #667eea; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        .crosshair { font-size: 60px; color: rgba(255,255,255,0.3); font-weight: 100; }
+        .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; padding: 40px 0; display: flex; justify-content: center; align-items: center; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
+        .shutter-btn { width: 80px; height: 80px; background: white; border: 6px solid #ff2d55; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: transform 0.1s; }
+        .shutter-btn:active { transform: scale(0.9); }
+        .nav-icons { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; font-size: 24px; color: white; }
+        .loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; flex-direction: column; color: white; }
+        .spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #ff2d55; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>AI가 문제를 분석하고 있습니다...</p>
+    </div>
+
     <div class="header">
-        <div style="font-weight:700;">🤖 codetbase</div>
-        <button onclick="location.href='history.html'" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:8px 16px; border-radius:20px;">📚 기록</button>
+        <div style="font-size: 18px; font-weight: 700;">🤖 codetbase</div>
+        <div onclick="location.href='history.html'" style="cursor:pointer; background:rgba(255,255,255,0.2); padding:5px 15px; border-radius:15px; font-size:14px;">기록</div>
     </div>
 
     <div class="camera-container">
@@ -30,11 +38,8 @@
         <div class="camera-overlay"><div class="crosshair">+</div></div>
     </div>
 
-    <div class="capture-btn" onclick="capturePhoto()"></div>
-
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <div>AI가 분석 중입니다...</div>
+    <div class="bottom-bar">
+        <div class="shutter-btn" onclick="takePhoto()"></div>
     </div>
 
     <script>
@@ -42,22 +47,30 @@
         const loading = document.getElementById('loading');
         let capturedImageData = null;
 
+        // 카메라 초기화
         async function initCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
                 video.srcObject = stream;
-            } catch (e) { alert('카메라 권한을 허용해주세요.'); }
+            } catch (err) {
+                alert('카메라를 켤 수 없습니다. 권한을 확인해주세요.');
+            }
         }
 
-        async function capturePhoto() {
+        // 촬영 버튼 클릭
+        async function takePhoto() {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            capturedImageData = canvas.toDataURL('image/jpeg', 0.9);
-            askQuestion(); // 촬영 후 즉시 질문
+            capturedImageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            await askQuestion();
         }
 
+        // AI에게 질문 전송
         async function askQuestion() {
             loading.style.display = 'flex';
             try {
@@ -67,28 +80,36 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ image: base64 })
                 });
+
                 const data = await response.json();
 
                 if (data.answer) {
+                    // LocalStorage 데이터베이스 구조 유지
                     const session = {
                         id: Date.now(),
                         image: base64,
                         messages: [
                             { type: 'user', image: capturedImageData, content: '이 문제를 풀어주세요', timestamp: Date.now() },
-                            { type: 'ai', content: data.answer, timestamp: Date.now() } // 텍스트 저장
+                            { type: 'ai', content: data.answer, timestamp: Date.now() } // 정답 텍스트 저장
                         ],
                         createdAt: Date.now()
                     };
+
                     const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
                     sessions.unshift(session);
                     localStorage.setItem('chat_sessions', JSON.stringify(sessions));
+
+                    // chat.html로 이동
                     window.location.href = 'chat.html';
+                } else {
+                    throw new Error(data.error || 'AI 응답 에러');
                 }
             } catch (error) {
-                alert('오류 발생');
+                alert('오류 발생: ' + error.message);
                 loading.style.display = 'none';
             }
         }
+
         initCamera();
     </script>
 </body>
