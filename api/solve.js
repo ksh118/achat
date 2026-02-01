@@ -1,19 +1,11 @@
 export default async function handler(req, res) {
-  // CORS 설정 (필요시)
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   const { image } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey) return res.status(500).json({ error: 'API 키가 설정되지 않았습니다.' });
-
   try {
-    // 2.0 대신 현재 가장 확실한 1.5-flash 모델을 사용합니다.
+    // 1.5-flash 모델 사용 (안정성 확보)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -22,7 +14,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "이 이미지 속 문제를 분석하고 정답과 풀이를 한국어로 자세히 설명해줘." },
+            { text: "이 이미지의 문제를 풀고 정답과 해설을 한국어로 자세히 알려줘." },
             { inline_data: { mime_type: "image/jpeg", data: image } }
           ]
         }]
@@ -33,11 +25,11 @@ export default async function handler(req, res) {
 
     if (data.error) return res.status(400).json({ error: data.error.message });
 
-    // AI 답변에서 객체가 아닌 '텍스트'만 추출하여 전송합니다.
-    const answerText = data.candidates[0].content.parts[0].text;
-    res.status(200).json({ answer: answerText });
+    // 여기서 텍스트만 뽑아서 전달해야 함!
+    const resultText = data.candidates[0].content.parts[0].text;
+    res.status(200).json({ answer: resultText });
 
   } catch (err) {
-    res.status(500).json({ error: '서버 연결 오류가 발생했습니다.' });
+    res.status(500).json({ error: '서버 오류: ' + err.message });
   }
 }
