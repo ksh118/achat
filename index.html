@@ -3,56 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>codetbase</title>
+    <title>CodeBase - AI 문제풀이</title>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
-        video { width: 100vw; height: 100vh; object-fit: cover; }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; align-items: center; justify-content: center; }
-        .crosshair { font-size: 40px; color: rgba(255,255,255,0.5); }
-        .shutter { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; background: white; border: 5px solid #ff2d55; border-radius: 50%; cursor: pointer; }
-        .nav { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; font-size: 24px; }
-        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+        body { 
+            margin: 0; 
+            background: #000; 
+            color: white; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            overflow: hidden; 
+        }
+        video { 
+            width: 100vw; 
+            height: 100vh; 
+            object-fit: cover; 
+        }
+        .overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .crosshair { 
+            font-size: 40px; 
+            color: rgba(255,255,255,0.5); 
+        }
+        .shutter { 
+            position: absolute; 
+            bottom: 60px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: 70px; 
+            height: 70px; 
+            background: white; 
+            border: 5px solid #ff2d55; 
+            border-radius: 50%; 
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.1s;
+        }
+        .shutter:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+        .nav { 
+            position: absolute; 
+            bottom: 20px; 
+            width: 100%; 
+            display: flex; 
+            justify-content: space-around; 
+            font-size: 24px;
+            pointer-events: auto;
+        }
+        .nav span {
+            cursor: pointer;
+            padding: 10px;
+        }
+        #loading { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.9); 
+            z-index: 1000; 
+            align-items: center; 
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid #ff2d55;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #error-msg {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ff2d55;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 2000;
+            max-width: 80%;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div id="loading">분석 중...</div>
-    <video id="v" autoplay playsinline></video>
-    <div class="overlay"><div class="crosshair">+</div></div>
-    <div class="shutter" onclick="take()"></div>
+    <div id="error-msg"></div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>AI 분석 중...</div>
+    </div>
+    
+    <video id="v" autoplay playsinline muted></video>
+    
+    <div class="overlay">
+        <div class="crosshair">+</div>
+    </div>
+    
+    <div class="shutter" onclick="takePicture()"></div>
+    
     <div class="nav">
-        <span onclick="location.href='g.html'">🖼️</span>
-        <span onclick="location.href='g.html'">🕒</span>
+        <span onclick="location.href='gallery.html'" title="갤러리">🖼️</span>
+        <span onclick="location.href='gallery.html'" title="기록">🕐</span>
     </div>
 
     <script>
-        const v = document.getElementById('v');
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => v.srcObject = s);
+        const video = document.getElementById('v');
+        const loadingDiv = document.getElementById('loading');
+        const errorMsg = document.getElementById('error-msg');
 
-        async function take() {
-            document.getElementById('loading').style.display = 'flex';
-            const c = document.createElement('canvas');
-            c.width = v.videoWidth; c.height = v.videoHeight;
-            c.getContext('2d').drawImage(v, 0, 0);
-            const img = c.toDataURL('image/jpeg');
-            const base64 = img.split(',')[1];
-
+        // 카메라 초기화
+        async function initCamera() {
             try {
-                const res = await fetch('/api/solve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: base64 })
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
                 });
-                const data = await res.json();
+                video.srcObject = stream;
+            } catch (error) {
+                showError('카메라 접근 권한이 필요합니다.');
+                console.error('Camera error:', error);
+            }
+        }
+
+        // 에러 메시지 표시
+        function showError(message) {
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 3000);
+        }
+
+        // 사진 촬영 및 분석
+        async function takePicture() {
+            if (!video.videoWidth) {
+                showError('카메라가 준비되지 않았습니다.');
+                return;
+            }
+
+            loadingDiv.style.display = 'flex';
+            
+            try {
+                // 캔버스에 비디오 프레임 그리기
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                
+                // 이미지를 base64로 변환
+                const imageData = canvas.toDataURL('image/jpeg', 0.9);
+                const base64Image = imageData.split(',')[1];
+
+                // API 호출
+                const response = await fetch('/api/solve', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: base64Image })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 
                 if (data.answer) {
-                    const h = JSON.parse(localStorage.getItem('cb_history') || '[]');
-                    // [핵심] [object Object] 방지를 위해 data.answer(문자열)를 직접 저장
-                    h.unshift({ img: img, ans: data.answer });
-                    localStorage.setItem('cb_history', JSON.stringify(h));
-                    location.href = 'g.html';
+                    // 기록 저장
+                    const history = JSON.parse(localStorage.getItem('cb_history') || '[]');
+                    history.unshift({ 
+                        img: imageData, 
+                        ans: data.answer,
+                        timestamp: Date.now()
+                    });
+                    
+                    // 최대 50개까지만 저장
+                    if (history.length > 50) {
+                        history.pop();
+                    }
+                    
+                    localStorage.setItem('cb_history', JSON.stringify(history));
+                    
+                    // 갤러리 페이지로 이동
+                    location.href = 'gallery.html';
+                } else {
+                    throw new Error('AI 응답이 없습니다.');
                 }
-            } catch (e) { alert("오류 발생"); }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('문제 분석 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
         }
+
+        // 페이지 로드 시 카메라 초기화
+        initCamera();
     </script>
 </body>
 </html>
