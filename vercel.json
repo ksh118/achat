@@ -6,22 +6,25 @@
       "use": "@vercel/static"
     },
     {
-      "src": "gallery.html",
+      "src": "history.html",
       "use": "@vercel/static"
     },
     {
-      "src": "api/solve.js",
+      "src": "api/*.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/solve",
-      "dest": "/api/solve.js"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ]
+  ],
+  "env": {
+    "GEMINI_API_KEY": "@gemini-api-key"
+  }
 }
