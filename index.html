@@ -3,230 +3,453 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CodeBase - AI 문제풀이</title>
+    <title>AI 선생님 - 문제 촬영</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            margin: 0; 
-            background: #000; 
-            color: white; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-            overflow: hidden; 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        video { 
-            width: 100vw; 
-            height: 100vh; 
-            object-fit: cover; 
+
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
-        .overlay { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            pointer-events: none; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+
+        .header {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
         }
-        .crosshair { 
-            font-size: 40px; 
-            color: rgba(255,255,255,0.5); 
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
         }
-        .shutter { 
-            position: absolute; 
-            bottom: 60px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            width: 70px; 
-            height: 70px; 
-            background: white; 
-            border: 5px solid #ff2d55; 
-            border-radius: 50%; 
+
+        .history-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
             cursor: pointer;
-            pointer-events: auto;
+            font-weight: 500;
+        }
+
+        .camera-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .crosshair {
+            font-size: 60px;
+            color: rgba(255,255,255,0.5);
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .guide-text {
+            position: absolute;
+            top: 100px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            font-size: 16px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.7);
+            padding: 0 20px;
+        }
+
+        .camera-controls {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 0 20px;
+        }
+
+        .capture-btn {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border: 6px solid #667eea;
+            border-radius: 50%;
+            cursor: pointer;
             transition: transform 0.1s;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
         }
-        .shutter:active {
-            transform: translateX(-50%) scale(0.95);
+
+        .capture-btn:active {
+            transform: scale(0.9);
         }
-        .nav { 
-            position: absolute; 
-            bottom: 20px; 
-            width: 100%; 
-            display: flex; 
-            justify-content: space-around; 
-            font-size: 24px;
-            pointer-events: auto;
+
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 1000;
+            flex-direction: column;
         }
-        .nav span {
+
+        .preview-modal.active {
+            display: flex;
+        }
+
+        .preview-header {
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-header button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
             cursor: pointer;
-            padding: 10px;
+            padding: 8px 16px;
         }
-        #loading { 
-            display: none; 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.9); 
-            z-index: 1000; 
-            align-items: center; 
+
+        .preview-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .preview-actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-retake {
+            flex: 1;
+            padding: 16px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid white;
+            color: white;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-retake:active {
+            transform: scale(0.98);
+        }
+
+        .btn-ask {
+            flex: 2;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-ask:active {
+            transform: scale(0.98);
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            align-items: center;
             justify-content: center;
             flex-direction: column;
             gap: 20px;
         }
+
+        .loading.active {
+            display: flex;
+        }
+
         .spinner {
             border: 4px solid rgba(255,255,255,0.1);
-            border-top: 4px solid #ff2d55;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
         }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        #error-msg {
+
+        .loading-text {
+            color: white;
+            font-size: 16px;
+        }
+
+        .camera-permission {
             display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #ff2d55;
-            padding: 20px;
-            border-radius: 10px;
-            z-index: 2000;
-            max-width: 80%;
             text-align: center;
+            color: white;
+            padding: 40px 20px;
+        }
+
+        .camera-permission.active {
+            display: block;
+        }
+
+        .permission-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .permission-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.8);
         }
     </style>
 </head>
 <body>
-    <div id="error-msg"></div>
-    
-    <div id="loading">
+    <div class="header">
+        <div class="header-title">🤖 AI 선생님</div>
+        <button class="history-btn" onclick="location.href='history.html'">📚 기록</button>
+    </div>
+
+    <div class="camera-container">
+        <video id="video" autoplay playsinline muted></video>
+        
+        <div class="camera-overlay">
+            <div class="crosshair">+</div>
+        </div>
+
+        <div class="guide-text">
+            문제를 화면 중앙에 맞춰주세요
+        </div>
+
+        <div class="camera-permission" id="cameraPermission">
+            <div class="permission-icon">📷</div>
+            <div class="permission-text">
+                카메라 권한이 필요합니다<br>
+                브라우저 설정에서 카메라를 허용해주세요
+            </div>
+        </div>
+    </div>
+
+    <div class="camera-controls">
+        <div class="capture-btn" onclick="capturePhoto()"></div>
+    </div>
+
+    <div class="preview-modal" id="previewModal">
+        <div class="preview-header">
+            <button onclick="closePreview()">✕ 취소</button>
+            <span style="font-weight: 700;">촬영된 사진</span>
+            <span></span>
+        </div>
+        <div class="preview-content">
+            <img id="previewImage" class="preview-image" alt="촬영된 이미지">
+        </div>
+        <div class="preview-actions">
+            <button class="btn-retake" onclick="closePreview()">
+                🔄 다시 찍기
+            </button>
+            <button class="btn-ask" onclick="askQuestion()">
+                💬 질문하기
+            </button>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
         <div class="spinner"></div>
-        <div>AI 분석 중...</div>
-    </div>
-    
-    <video id="v" autoplay playsinline muted></video>
-    
-    <div class="overlay">
-        <div class="crosshair">+</div>
-    </div>
-    
-    <div class="shutter" onclick="takePicture()"></div>
-    
-    <div class="nav">
-        <span onclick="location.href='gallery.html'" title="갤러리">🖼️</span>
-        <span onclick="location.href='gallery.html'" title="기록">🕐</span>
+        <div class="loading-text">AI가 분석 중입니다...</div>
     </div>
 
     <script>
-        const video = document.getElementById('v');
-        const loadingDiv = document.getElementById('loading');
-        const errorMsg = document.getElementById('error-msg');
+        const video = document.getElementById('video');
+        const previewModal = document.getElementById('previewModal');
+        const previewImage = document.getElementById('previewImage');
+        const loading = document.getElementById('loading');
+        const cameraPermission = document.getElementById('cameraPermission');
+        
+        let capturedImageData = null;
 
-        // 카메라 초기화
         async function initCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         facingMode: 'environment',
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
-                    } 
+                    }
                 });
                 video.srcObject = stream;
+                cameraPermission.classList.remove('active');
             } catch (error) {
-                showError('카메라 접근 권한이 필요합니다.');
                 console.error('Camera error:', error);
+                cameraPermission.classList.add('active');
             }
         }
 
-        // 에러 메시지 표시
-        function showError(message) {
-            errorMsg.textContent = message;
-            errorMsg.style.display = 'block';
-            setTimeout(() => {
-                errorMsg.style.display = 'none';
-            }, 3000);
-        }
-
-        // 사진 촬영 및 분석
-        async function takePicture() {
+        function capturePhoto() {
             if (!video.videoWidth) {
-                showError('카메라가 준비되지 않았습니다.');
+                alert('카메라가 준비되지 않았습니다.');
                 return;
             }
 
-            loadingDiv.style.display = 'flex';
-            
-            try {
-                // 캔버스에 비디오 프레임 그리기
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0);
-                
-                // 이미지를 base64로 변환
-                const imageData = canvas.toDataURL('image/jpeg', 0.9);
-                const base64Image = imageData.split(',')[1];
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
 
-                // API 호출
-                const response = await fetch('/api/solve', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ image: base64Image })
-                });
+            capturedImageData = canvas.toDataURL('image/jpeg', 0.9);
+            previewImage.src = capturedImageData;
+            previewModal.classList.add('active');
 
-                if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
-                }
-
-                const data = await response.json();
-                
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                if (data.answer) {
-                    // 기록 저장
-                    const history = JSON.parse(localStorage.getItem('cb_history') || '[]');
-                    history.unshift({ 
-                        img: imageData, 
-                        ans: data.answer,
-                        timestamp: Date.now()
-                    });
-                    
-                    // 최대 50개까지만 저장
-                    if (history.length > 50) {
-                        history.pop();
-                    }
-                    
-                    localStorage.setItem('cb_history', JSON.stringify(history));
-                    
-                    // 갤러리 페이지로 이동
-                    location.href = 'gallery.html';
-                } else {
-                    throw new Error('AI 응답이 없습니다.');
-                }
-                
-            } catch (error) {
-                console.error('Error:', error);
-                showError('문제 분석 중 오류가 발생했습니다: ' + error.message);
-            } finally {
-                loadingDiv.style.display = 'none';
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.enabled = false);
             }
         }
 
-        // 페이지 로드 시 카메라 초기화
+        function closePreview() {
+            previewModal.classList.remove('active');
+            capturedImageData = null;
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.enabled = true);
+            }
+        }
+
+        async function askQuestion() {
+            if (!capturedImageData) return;
+
+            loading.classList.add('active');
+
+            try {
+                const base64 = capturedImageData.split(',')[1];
+
+                const response = await fetch('/api/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64 })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                const session = {
+                    id: Date.now(),
+                    image: base64,
+                    messages: [
+                        {
+                            type: 'user',
+                            image: capturedImageData,
+                            content: '이 문제를 풀어주세요',
+                            timestamp: Date.now()
+                        },
+                        {
+                            type: 'ai',
+                            content: data.answer,
+                            timestamp: Date.now()
+                        }
+                    ],
+                    createdAt: Date.now()
+                };
+
+                const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
+                sessions.unshift(session);
+                if (sessions.length > 50) sessions.pop();
+                localStorage.setItem('chat_sessions', JSON.stringify(sessions));
+
+                window.location.href = 'chat.html';
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('오류가 발생했습니다: ' + error.message);
+                loading.classList.remove('active');
+            }
+        }
+
         initCamera();
+
+        window.addEventListener('beforeunload', () => {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
     </script>
 </body>
 </html>
