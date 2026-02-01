@@ -2,31 +2,26 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>codetbase - Camera</title>
     <style>
         body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
         #camera-container { position: relative; width: 100vw; height: 100vh; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 50px; color: rgba(255,255,255,0.5); }
-        .top-bar { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
-        .shutter-btn { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 80px; height: 80px; background: white; border: 5px solid #ff2d55; border-radius: 50%; cursor: pointer; }
-        .nav-icons { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; font-size: 24px; cursor: pointer; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+        .crosshair { font-size: 40px; color: rgba(255,255,255,0.6); font-weight: 200; }
+        .shutter-btn { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 75px; height: 75px; background: white; border: 6px solid #ff2d55; border-radius: 50%; cursor: pointer; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .nav-icons { position: absolute; bottom: 25px; width: 100%; display: flex; justify-content: space-around; font-size: 26px; }
+        .nav-icons span { cursor: pointer; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
+    <div id="loading"><div>분석 중...</div></div>
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
         <div class="overlay"><div class="crosshair">+</div></div>
-        
-        <div class="top-bar">
-            <span>5:19</span>
-            <div style="background:black; width:100px; height:30px; border-radius:15px;"></div>
-            <span>LTE 59</span>
-        </div>
-
         <div class="shutter-btn" onclick="takePhoto()"></div>
-
         <div class="nav-icons">
             <span onclick="location.href='g.html'">🖼️</span>
             <span>⚡</span>
@@ -36,34 +31,43 @@
 
     <script>
         const video = document.getElementById('video');
+        const loading = document.getElementById('loading');
 
-        // 카메라 시작
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => alert("카메라를 켤 수 없습니다: " + err));
+            .catch(err => alert("카메라를 활성화할 수 없습니다."));
 
         async function takePhoto() {
+            loading.style.display = 'flex';
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            const imageData = canvas.toDataURL('image/png');
-
-            // AI 호출 및 저장 로직 (가상 API 호출)
-            alert("문제를 분석 중입니다. 잠시만 기다려주세요...");
             
-            // 실제 구현시 여기서 Gemini API를 호출합니다.
-            const dummyResponse = "정답은 2번입니다. 문맥상 'is preparing'과 'making'이 가장 자연스럽습니다.";
-            
-            const history = JSON.parse(localStorage.getItem('study_history') || '[]');
-            history.unshift({
-                img: imageData,
-                answer: dummyResponse,
-                date: new Date().toLocaleString()
-            });
-            localStorage.setItem('study_history', JSON.stringify(history));
+            const imageData = canvas.toDataURL('image/jpeg');
+            const base64Image = imageData.split(',')[1];
 
-            location.href = 'g.html';
+            try {
+                const response = await fetch('/api/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Image })
+                });
+
+                const result = await response.json();
+                
+                if (result.answer) {
+                    const history = JSON.parse(localStorage.getItem('codetbase_history') || '[]');
+                    history.unshift({ img: imageData, answer: result.answer });
+                    localStorage.setItem('codetbase_history', JSON.stringify(history));
+                    location.href = 'g.html';
+                } else {
+                    throw new Error(result.error || "알 수 없는 에러");
+                }
+            } catch (e) {
+                alert("에러 발생: " + e.message);
+                loading.style.display = 'none';
+            }
         }
     </script>
 </body>
