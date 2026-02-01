@@ -2,77 +2,69 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 문제 풀이</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <title>codetbase - Camera</title>
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 15px; background: #f4f7f6; }
-        #chat { height: 400px; overflow-y: auto; background: white; border-radius: 12px; padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; }
-        .msg { margin-bottom: 10px; padding: 12px; border-radius: 10px; font-size: 14px; line-height: 1.6; }
-        .user { background: #007aff; color: white; margin-left: 15%; }
-        .ai { background: #e9e9eb; color: black; margin-right: 15%; }
-        img { width: 100%; border-radius: 8px; margin-bottom: 5px; }
-        .controls { display: flex; flex-direction: column; gap: 8px; }
-        button { padding: 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; background: #34c759; color: white; font-size: 16px; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+        #camera-container { position: relative; width: 100vw; height: 100vh; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 50px; color: rgba(255,255,255,0.5); }
+        .top-bar { position: absolute; top: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
+        .shutter-btn { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 80px; height: 80px; background: white; border: 5px solid #ff2d55; border-radius: 50%; cursor: pointer; }
+        .nav-icons { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; font-size: 24px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="chat"></div>
-    <div class="controls">
-        <input type="file" id="cam" accept="image/*" capture="environment" style="display:none;">
-        <button onclick="document.getElementById('cam').click()">📷 사진 찍기 (바로 시작)</button>
+    <div id="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="overlay"><div class="crosshair">+</div></div>
+        
+        <div class="top-bar">
+            <span>5:19</span>
+            <div style="background:black; width:100px; height:30px; border-radius:15px;"></div>
+            <span>LTE 59</span>
+        </div>
+
+        <div class="shutter-btn" onclick="takePhoto()"></div>
+
+        <div class="nav-icons">
+            <span onclick="location.href='g.html'">🖼️</span>
+            <span>⚡</span>
+            <span onclick="location.href='g.html'">🕒</span>
+        </div>
     </div>
 
     <script>
-        const SURL = "https://nguwjyykgifeswobongq.supabase.co";
-        const SKEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ndXdqeXlrZ2lmZXN3b2JvbmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3NTY4OTMsImV4cCI6MjA4NTMzMjg5M30.3wy2nyumj3apjWpiK-u5aJEuug81Ofkk_o8oW_xw4Vg";
-        const client = window.supabase.createClient(SURL, SKEY);
+        const video = document.getElementById('video');
 
-        function add(role, text, img = null) {
-            const div = document.createElement('div');
-            div.className = `msg ${role}`;
-            if(img) div.innerHTML += `<img src="${img}">`;
-            div.innerHTML += `<div>${text}</div>`;
-            document.getElementById('chat').appendChild(div);
-            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        // 카메라 시작
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => alert("카메라를 켤 수 없습니다: " + err));
+
+        async function takePhoto() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const imageData = canvas.toDataURL('image/png');
+
+            // AI 호출 및 저장 로직 (가상 API 호출)
+            alert("문제를 분석 중입니다. 잠시만 기다려주세요...");
+            
+            // 실제 구현시 여기서 Gemini API를 호출합니다.
+            const dummyResponse = "정답은 2번입니다. 문맥상 'is preparing'과 'making'이 가장 자연스럽습니다.";
+            
+            const history = JSON.parse(localStorage.getItem('study_history') || '[]');
+            history.unshift({
+                img: imageData,
+                answer: dummyResponse,
+                date: new Date().toLocaleString()
+            });
+            localStorage.setItem('study_history', JSON.stringify(history));
+
+            location.href = 'g.html';
         }
-
-        document.getElementById('cam').onchange = async (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const b64 = reader.result;
-                add('user', "분석 시작...", b64);
-
-                try {
-                    const res = await fetch('/api/solve', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image: b64.split(',')[1] })
-                    });
-
-                    const data = await res.json();
-                    
-                    // 핵심 수정: AI 답변 추출 방식을 훨씬 유연하게 바꿈
-                    let aiText = "";
-                    if (data.candidates && data.candidates[0].content) {
-                        aiText = data.candidates[0].content.parts[0].text;
-                    } else if (data.error) {
-                        aiText = "에러발생: " + data.error.message;
-                    } else {
-                        aiText = "응답 형식 오류: " + JSON.stringify(data);
-                    }
-
-                    add('ai', aiText);
-                    await client.from('chat_history').insert([{ question: "사진 분석", answer: aiText, image_url: b64 }]);
-                } catch (err) {
-                    add('ai', "네트워크 오류: " + err.message);
-                }
-            };
-        };
     </script>
 </body>
 </html>
