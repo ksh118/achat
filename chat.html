@@ -3,23 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>codetbase - 해설</title>
+    <title>codetbase - 풀이</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        body { font-family: sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
         img { width: 100%; border-radius: 10px; margin-bottom: 15px; }
-        .text { white-space: pre-wrap; line-height: 1.8; color: #333; }
-        .back { text-decoration: none; color: #667eea; font-weight: bold; display: block; margin-bottom: 15px; }
+        .answer { white-space: pre-wrap; line-height: 1.7; font-size: 15px; }
+        .btn { display: block; text-align: center; padding: 15px; background: #667eea; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <a href="index.html" class="back">← 다시 촬영하기</a>
-    <div class="card"><img id="qImg"></div>
-    <div class="card"><h3>✅ AI 선생님의 풀이</h3><div id="ansText" class="text"></div></div>
-
+    <a href="index.html" class="btn">← 다시 촬영하기</a>
+    <div class="card"><img id="resImg"></div>
+    <div class="card">
+        <h3 style="margin-top:0; color:#667eea;">🤖 AI 선생님의 풀이</h3>
+        <div id="resAns" class="answer"></div>
+    </div>
     <script>
-        document.getElementById('qImg').src = localStorage.getItem('last_image');
-        document.getElementById('ansText').innerText = localStorage.getItem('last_answer');
+        document.getElementById('resImg').src = localStorage.getItem('last_img');
+        document.getElementById('resAns').innerText = localStorage.getItem('last_ans');
     </script>
 </body>
 </html>
