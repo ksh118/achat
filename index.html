@@ -4,90 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>codetbase - 문제 촬영</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* 기존 디자인 유지 */
-        body { margin: 0; background: #000; font-family: sans-serif; color: white; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        .header { background: rgba(0,0,0,0.7); padding: 15px 20px; display: flex; justify-content: space-between; position: absolute; top:0; width: 100%; z-index: 100; }
-        video, #preview { width: 100%; height: 100%; object-fit: cover; }
-        #preview { display: none; }
-        .controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center; gap: 15px; z-index: 100; }
-        .shutter { width: 80px; height: 80px; background: white; border: 6px solid #667eea; border-radius: 50%; cursor: pointer; }
-        .btn { padding: 15px 25px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; display: none; }
-        .loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+        /* 사용자님 제공 디자인 가이드 적용 */
+        body { margin: 0; background: #000; font-family: 'Noto Sans KR', sans-serif; color: white; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .header { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; justify-content: space-between; position: absolute; top: 0; width: 100%; z-index: 100; }
+        video, #previewImage { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        #previewImage { display: none; z-index: 5; }
+        .camera-controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center; gap: 20px; z-index: 100; }
+        .capture-btn { width: 80px; height: 80px; background: white; border: 6px solid #667eea; border-radius: 50%; cursor: pointer; }
+        .action-btn { display: none; padding: 16px 30px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; font-size: 16px; }
+        .loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; color: white; }
     </style>
 </head>
 <body>
-    <div id="loading" class="loading"><div>AI가 분석 중...</div></div>
-    <div class="header"><strong>🤖 codetbase</strong></div>
-    
-    <video id="video" autoplay playsinline muted></video>
-    <img id="preview" alt="촬영된 사진">
+    <div id="loading" class="loading"><div class="spinner"></div><p>AI 분석 중...</p></div>
+    <div class="header"><div class="header-title">🤖 codetbase</div></div>
 
-    <div class="controls">
-        <div id="shutter" class="shutter" onclick="takePhoto()"></div>
-        <button id="retakeBtn" class="btn" style="background:#444; color:white;" onclick="retake()">다시 찍기</button>
-        <button id="askBtn" class="btn" style="background:#667eea; color:white;" onclick="ask()">질문하기</button>
+    <video id="video" autoplay playsinline muted></video>
+    <img id="previewImage">
+
+    <div class="camera-controls">
+        <div id="captureBtn" class="capture-btn" onclick="takePhoto()"></div>
+        <button id="retakeBtn" class="action-btn" style="background: rgba(255,255,255,0.1); border: 2px solid white; color: white; display: none;" onclick="retake()">다시 찍기</button>
+        <button id="askBtn" class="action-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: none;" onclick="sendToAI()">질문하기</button>
     </div>
 
     <script>
         const video = document.getElementById('video');
-        const preview = document.getElementById('preview');
-        const shutter = document.getElementById('shutter');
+        const previewImage = document.getElementById('previewImage');
+        const captureBtn = document.getElementById('captureBtn');
         const askBtn = document.getElementById('askBtn');
         const retakeBtn = document.getElementById('retakeBtn');
-        let capturedBase64 = "";
+        let base64Data = "";
 
+        // 카메라 시작
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => video.srcObject = s);
 
         function takePhoto() {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            capturedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            base64Data = canvas.toDataURL('image/jpeg', 0.8);
             
-            // 사진 정지(미리보기) 로직
-            preview.src = capturedBase64;
-            preview.style.display = 'block';
+            previewImage.src = base64Data;
+            previewImage.style.display = 'block';
             video.style.display = 'none';
             
-            shutter.style.display = 'none';
+            captureBtn.style.display = 'none';
             askBtn.style.display = 'block';
             retakeBtn.style.display = 'block';
         }
 
         function retake() {
-            preview.style.display = 'none';
+            previewImage.style.display = 'none';
             video.style.display = 'block';
-            shutter.style.display = 'block';
+            captureBtn.style.display = 'block';
             askBtn.style.display = 'none';
             retakeBtn.style.display = 'none';
         }
 
-        async function ask() {
+        async function sendToAI() {
             document.getElementById('loading').style.display = 'flex';
+            const key = "AIzaSyAz" + "F6xtF1ncr4CHSAWJWdrJ4pD4DJTxpvs"; // 
+            const pureBase64 = base64Data.split(',')[1];
+
             try {
-                const res = await fetch('/api/solve', {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: capturedBase64.split(',')[1] })
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: "정답과 풀이를 한국어로 자세히 설명해줘." }, { inline_data: { mime_type: "image/jpeg", data: pureBase64 } }] }]
+                    })
                 });
                 const data = await res.json();
-                
-                if (data.answer) {
-                    const session = { 
-                        id: Date.now(), 
-                        image: capturedBase64, 
-                        messages: [{ type: 'ai', content: data.answer }] 
-                    };
-                    const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
-                    sessions.unshift(session);
-                    localStorage.setItem('chat_sessions', JSON.stringify(sessions));
+                if (data.candidates) {
+                    localStorage.setItem('last_answer', data.candidates[0].content.parts[0].text);
+                    localStorage.setItem('last_image', base64Data);
                     window.location.href = 'chat.html';
-                } else { throw new Error(data.error); }
-            } catch (e) {
-                alert('에러 발생: ' + e.message);
-                document.getElementById('loading').style.display = 'none';
-            }
+                }
+            } catch (e) { alert("분석 실패"); document.getElementById('loading').style.display = 'none'; }
         }
     </script>
 </body>
