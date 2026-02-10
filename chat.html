@@ -3,45 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>codetbase - 풀이 결과</title>
+    <title>codetbase - 해설</title>
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 30px; }
-        .header { background: #667eea; color: white; padding: 15px; display: flex; align-items: center; sticky; top: 0; z-index: 10; }
-        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
-        .problem-card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .problem-img { width: 100%; display: block; }
-        .answer-card { background: white; border-radius: 15px; padding: 20px; line-height: 1.8; color: #333; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .back-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; margin-right: 10px; }
-        h3 { margin-top: 0; color: #667eea; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        img { width: 100%; border-radius: 10px; margin-bottom: 15px; }
+        .text { white-space: pre-wrap; line-height: 1.8; color: #333; }
+        .back { text-decoration: none; color: #667eea; font-weight: bold; display: block; margin-bottom: 15px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <button class="back-btn" onclick="location.href='index.html'">←</button>
-        <span style="font-weight:700;">AI 선생님의 풀이</span>
-    </div>
-    
-    <div class="container" id="content">
-        </div>
+    <a href="index.html" class="back">← 다시 촬영하기</a>
+    <div class="card"><img id="qImg"></div>
+    <div class="card"><h3>✅ AI 선생님의 풀이</h3><div id="ansText" class="text"></div></div>
 
     <script>
-        const content = document.getElementById('content');
-        const sessions = JSON.parse(localStorage.getItem('chat_sessions') || '[]');
-        const latest = sessions[0]; // 방금 촬영한 최신 데이터
-
-        if (latest) {
-            content.innerHTML = `
-                <div class="problem-card">
-                    <img src="${latest.image}" class="problem-img">
-                </div>
-                <div class="answer-card">
-                    <h3>✅ AI 정답 및 해설</h3>
-                    <div style="white-space: pre-wrap;">${latest.messages[0].content}</div>
-                </div>
-            `;
-        } else {
-            location.href = 'index.html';
-        }
+        document.getElementById('qImg').src = localStorage.getItem('last_image');
+        document.getElementById('ansText').innerText = localStorage.getItem('last_answer');
     </script>
 </body>
 </html>
