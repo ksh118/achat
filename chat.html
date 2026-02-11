@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>codetbase - AI 해설</title>
+    <title>codetbase - 해설 채팅</title>
     <style>
         body { font-family: sans-serif; background: #abc1d1; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         .chat-header { background: #444; color: white; padding: 15px; font-weight: bold; text-align: center; }
@@ -20,28 +20,28 @@
 
     <script>
         const chatArea = document.getElementById('chatArea');
-        const API_KEY = "AIzaSyAzF6xtF1ncr4CHSAWJWdrJ4pD4DJTxpvs"; //
+        // 사용자님의 API 키
+        const API_KEY = "AIzaSyAzF6xtF1ncr4CHSAWJWdrJ4pD4DJTxpvs";
         const imgData = localStorage.getItem('temp_image');
 
         window.onload = async () => {
             if (!imgData) return window.location.href = 'index.html';
 
             addMessage('me', `<img src="${imgData}">`);
-            const loadingId = addMessage('ai', "문제를 분석하고 있습니다 (영어/수학 모두 가능)...");
+            const loadingId = addMessage('ai', "문제를 정밀 분석 중입니다...");
 
             try {
-                // 안정적인 v1 API 사용
-                const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-                const pureBase64 = imgData.split(',')[1];
-
+                // 404 에러 방지를 위한 가장 정확한 주소 형식 (v1beta1 사용)
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+                
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: "너는 만능 AI 선생님이야. 이미지에 영어 지문이나 수학 문제가 있다면 이를 정확히 읽고, '정답'과 '상세한 해설'을 한국어로 작성해줘. 영어 문장은 해석도 포함해줘." },
-                                { inline_data: { mime_type: "image/jpeg", data: pureBase64 } }
+                                { text: "이 이미지의 문제를 풀어서 정답과 풀이를 한국어로 자세히 설명해줘. 영어 문제라면 해석도 포함해줘." },
+                                { inline_data: { mime_type: "image/jpeg", data: imgData.split(',')[1] } }
                             ]
                         }]
                     })
@@ -51,11 +51,14 @@
 
                 if (data.candidates && data.candidates[0].content) {
                     document.getElementById(loadingId).innerText = data.candidates[0].content.parts[0].text;
+                } else if (data.error) {
+                    // 에러 발생 시 구체적인 이유 출력
+                    document.getElementById(loadingId).innerText = "시스템 에러: " + data.error.message;
                 } else {
-                    document.getElementById(loadingId).innerText = "인식에 실패했습니다. 사진을 더 밝고 선명하게 찍어보세요.";
+                    document.getElementById(loadingId).innerText = "인식 실패. 글자가 잘 보이게 다시 찍어주세요.";
                 }
             } catch (e) {
-                document.getElementById(loadingId).innerText = "오류 발생: " + e.message;
+                document.getElementById(loadingId).innerText = "연결 실패: " + e.message;
             }
         };
 
