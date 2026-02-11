@@ -3,108 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>codetbase - 문제 촬영</title>
+    <title>codetbase - AI 문제 풀이</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* 사용자님의 기존 디자인 유지 */
+        /* 사용자님의 기존 디자인 가이드 반영 */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Noto Sans KR', sans-serif; background: #000; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        .header { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px); color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; position: absolute; top: 0; width: 100%; z-index: 100; }
-        .camera-container { flex: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
+        
+        .header { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px); color: white; padding: 15px 20px; display: flex; align-items: center; justify-content: center; position: absolute; top: 0; width: 100%; z-index: 100; }
+        
+        .camera-container { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
         video, #preview { width: 100%; height: 100%; object-fit: cover; position: absolute; }
-        #preview { display: none; z-index: 10; }
+        #preview { display: none; z-index: 50; }
+
         .controls { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center; gap: 20px; z-index: 100; }
-        .shutter { width: 80px; height: 80px; background: white; border: 6px solid #667eea; border-radius: 50%; cursor: pointer; }
-        .action-btn { display: none; padding: 15px 30px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        
+        /* 촬영 버튼 */
+        .shutter { width: 80px; height: 80px; background: white; border: 6px solid #667eea; border-radius: 50%; cursor: pointer; transition: 0.2s; }
+        .shutter:active { transform: scale(0.9); }
+
+        /* 다시찍기/질문하기 버튼 */
+        .btn { display: none; padding: 16px 32px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; font-size: 16px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .retake-btn { background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px); border: 1px solid white; }
+        .solve-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+
+        /* 로딩 화면 */
         .loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; color: white; }
-        .spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        .spinner { border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #667eea; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div id="loading" class="loading"><div class="spinner"></div><p>AI 선생님이 문제를 읽고 있어요...</p></div>
-    <div class="header"><div style="font-weight:700;">🤖 codetbase</div></div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>AI 선생님이 해설을 작성 중입니다...</p>
+    </div>
+
+    <div class="header"><strong>🤖 codetbase</strong></div>
 
     <div class="camera-container">
         <video id="video" autoplay playsinline muted></video>
-        <img id="preview">
+        <img id="preview" alt="촬영된 이미지">
     </div>
 
     <div class="controls">
         <div id="shutter" class="shutter" onclick="takePhoto()"></div>
-        <button id="retakeBtn" class="action-btn" style="background:#444; color:white;" onclick="retake()">다시 찍기</button>
-        <button id="askBtn" class="action-btn" style="background:#667eea; color:white;" onclick="askAI()">질문하기</button>
+        
+        <button id="retakeBtn" class="btn retake-btn" onclick="retake()">다시 찍기</button>
+        <button id="solveBtn" class="btn solve-btn" onclick="askAI()">질문하기</button>
     </div>
 
     <script>
         const video = document.getElementById('video');
         const preview = document.getElementById('preview');
         const shutter = document.getElementById('shutter');
-        const askBtn = document.getElementById('askBtn');
         const retakeBtn = document.getElementById('retakeBtn');
+        const solveBtn = document.getElementById('solveBtn');
         const loading = document.getElementById('loading');
-        let capturedImg = "";
 
-        // 보내주신 API 키 직접 할당
+        // 사용자님의 API 키
         const API_KEY = "AIzaSyAzF6xtF1ncr4CHSAWJWdrJ4pD4DJTxpvs";
+        let capturedData = null;
 
+        // 1. 카메라 시작
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(s => video.srcObject = s)
-            .catch(e => alert("카메라를 켤 수 없습니다."));
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { alert("카메라 권한이 필요합니다."); });
 
+        // 2. 사진 촬영 (화면 정지)
         function takePhoto() {
             const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            capturedImg = canvas.toDataURL('image/jpeg', 0.8);
             
-            preview.src = capturedImg;
+            capturedData = canvas.toDataURL('image/jpeg', 0.8);
+            preview.src = capturedData;
+            
+            // UI 전환
             preview.style.display = 'block';
             video.style.display = 'none';
             shutter.style.display = 'none';
-            askBtn.style.display = 'block';
             retakeBtn.style.display = 'block';
+            solveBtn.style.display = 'block';
         }
 
+        // 3. 다시 찍기 (정지 해제)
         function retake() {
             preview.style.display = 'none';
             video.style.display = 'block';
             shutter.style.display = 'block';
-            askBtn.style.display = 'none';
             retakeBtn.style.display = 'none';
+            solveBtn.style.display = 'none';
         }
 
+        // 4. AI 분석 (Vercel 없이 구글로 직접 전송)
         async function askAI() {
             loading.style.display = 'flex';
-            const base64Data = capturedImg.split(',')[1];
-            
+            const base64Image = capturedData.split(',')[1];
+
             try {
-                // GitHub Pages에서 직접 Google API 호출
+                // [수정 핵심] Vercel 주소가 아닌 구글 정식 API 주소 사용
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-                const res = await fetch(url, {
+                
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: "이 문제의 정답과 풀이를 한국어로 아주 자세히 설명해줘." },
-                                { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                                { text: "이 이미지 속 문제를 분석하여 정답과 풀이를 한국어로 아주 자세하게 설명해줘." },
+                                { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                             ]
                         }]
                     })
                 });
 
-                const data = await res.json();
-                if (data.candidates) {
-                    const answer = data.candidates[0].content.parts[0].text;
-                    localStorage.setItem('last_img', capturedImg);
-                    localStorage.setItem('last_ans', answer);
-                    window.location.href = 'chat.html'; // 결과 페이지로 이동
+                const data = await response.json();
+
+                if (data.candidates && data.candidates[0].content) {
+                    const resultText = data.candidates[0].content.parts[0].text;
+                    
+                    // 데이터 저장 (chat.html에서 읽어감)
+                    const session = {
+                        image: capturedData,
+                        messages: [{ type: 'ai', content: resultText }]
+                    };
+                    localStorage.setItem('chat_sessions', JSON.stringify([session]));
+                    
+                    window.location.href = 'chat.html';
                 } else {
-                    throw new Error("AI가 문제를 읽지 못했습니다.");
+                    throw new Error("분석에 실패했습니다. 다시 시도해주세요.");
                 }
-            } catch (e) {
-                alert("에러: " + e.message);
+            } catch (error) {
+                alert("에러: " + error.message);
                 loading.style.display = 'none';
             }
         }
