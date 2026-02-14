@@ -40,7 +40,9 @@ export default async function handler(req, res) {
       }
     });
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    // 수정!
+// v1 엔드포인트와 정확한 1.5-flash 모델명 사용
+const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -127,4 +129,3 @@ ${conversationContext}
       error: '서버 오류: ' + (err.message || '알 수 없는 오류') 
     });
   }
-}
